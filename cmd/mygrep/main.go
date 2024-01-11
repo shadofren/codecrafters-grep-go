@@ -46,52 +46,53 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 		return false, nil
 	}
 
-	// recursion
-	pat := pattern[0]
-	if pat == '\\' { // escape sequence
-		if len(pattern) == 1 {
-			return false, nil
-		}
-		if pattern[1] == 'd' {
-			if onlyStart {
+	if onlyStart {
+		// recursion
+		switch pattern[0] {
+		case '\\':
+			if len(pattern) == 1 {
+				return false, nil
+			}
+			if pattern[1] == 'd' {
 				if isDigit(line[0]) {
 					return matchLine(line[1:], pattern[2:], onlyStart)
 				}
 				return false, nil
-			} else {
-				for i := 0; i < len(line); i++ {
-					match, err := matchLine(line[i:], pattern, true)
-					if match {
-						return match, err
-					}
+			} else if pattern[1] == 'w' {
+				if isAlphaNumeric(line[0]) {
+					return matchLine(line[1:], pattern[2:], onlyStart)
 				}
+				return false, nil
 			}
-		}
-	} else if pat == '+' {
-
-	} else if pat == '*' {
-
-	} else {
-		// match a single character
-		if onlyStart {
+		case '+':
+			return false, nil
+		case '*':
+			return false, nil
+		default:
 			if line[0] == pattern[0] {
 				return matchLine(line[1:], pattern[1:], onlyStart)
 			}
 			return false, nil
-		} else {
-			for i := 0; i < len(line); i++ {
-				match, err := matchLine(line[i:], pattern, true)
-				if match {
-					return match, err
-				}
+		}
+	} else {
+		for i := 0; i < len(line); i++ {
+			match, err := matchLine(line[i:], pattern, true)
+			if match {
+				return match, err
 			}
-			return false, nil
 		}
 	}
-
 	return false, nil
 }
 
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func isAlpha(ch byte) bool {
+	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+}
+
+func isAlphaNumeric(ch byte) bool {
+	return isDigit(ch) || isAlpha(ch) || ch == '_'
 }
