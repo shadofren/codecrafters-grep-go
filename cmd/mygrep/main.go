@@ -21,8 +21,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: read input text: %v\n", err)
 		os.Exit(2)
 	}
-
-	ok, err := matchLine(line, pattern, false)
+  
+  ok, err := matchLine(line, pattern, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(2)
@@ -43,7 +43,7 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 	if len(pattern) == 0 {
 		return true, nil
 	}
-	if len(line) == 0 {
+	if len(line) == 1 { // skip the \n for now
 		return false, nil
 	}
 
@@ -69,15 +69,30 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 			return false, nil
 		case '*':
 			return false, nil
-    case '[': // character group
-      endIdx := strings.Index(pattern, "]")
-      for i := 1; i < endIdx; i++ {
-        // check if any of the character match
-        if line[0] == pattern[i] {
-          return matchLine(line[1:], pattern[endIdx+1:], onlyStart)
+		case '[': // character group
+      fmt.Println("character group")
+			endIdx := strings.Index(pattern, "]")
+			// check for positive / negative character group
+			if pattern[1] == '^' {
+        fmt.Println("checking negative", line, pattern)
+        for i := 2; i < endIdx; i++ {
+          if line[0] == pattern[i] {
+            return false, nil
+          }
         }
-      }
-      return false, nil
+        return matchLine(line[1:], pattern[endIdx+1:], onlyStart)
+			} else {
+        fmt.Println("checking positive", line, pattern)
+				for i := 1; i < endIdx; i++ {
+					// check if any of the character match
+          fmt.Println("check", line[0], pattern[i], line[0] == pattern[i])
+					if line[0] == pattern[i] {
+            fmt.Println("recurse", line[1:], pattern[endIdx+1:])
+						return matchLine(line[1:], pattern[endIdx+1:], onlyStart)
+					}
+				}
+			}
+			return false, nil
 		default:
 			if line[0] == pattern[0] {
 				return matchLine(line[1:], pattern[1:], onlyStart)
