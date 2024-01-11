@@ -22,12 +22,10 @@ func main() {
 		os.Exit(2)
 	}
 
-  var ok bool
   if line[len(line)-1] == '\n' {
-    ok, err = matchLine(line[:len(line)-1], pattern, false)
-  } else {
-    ok, err = matchLine(line, pattern, false)
+    line = line[:len(line)-1]
   }
+  ok, err := matchLine(line, pattern, false)
   
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -53,6 +51,10 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 	if len(line) == 0 { 
 		return false, nil
 	}
+
+  if pattern[0] == '^' {
+    return matchLine(line, pattern[1:], true)
+  }
 
 	if onlyStart {
 		// recursion
