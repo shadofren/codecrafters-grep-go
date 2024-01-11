@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
-	"unicode/utf8"
 )
 
 // Usage: echo <input_text> | your_grep.sh -E <pattern>
@@ -23,25 +21,77 @@ func main() {
 		os.Exit(2)
 	}
 
-	ok, err := matchLine(line, pattern)
+	ok, err := matchLine(line, pattern, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(2)
 	}
 
 	if !ok {
+		fmt.Println("not ok")
 		os.Exit(1)
 	}
+	fmt.Println("ok")
 
 	// default exit code is 0 which means success
 }
 
-func matchLine(line []byte, pattern string) (bool, error) {
-	if utf8.RuneCountInString(pattern) != 1 {
-		return false, fmt.Errorf("unsupported pattern: %q", pattern)
+func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
+
+	// base case
+	if len(pattern) == 0 {
+		return true, nil
+	}
+	if len(line) == 0 {
+		return false, nil
 	}
 
-	var ok = bytes.ContainsAny(line, pattern)
+	// recursion
+	pat := pattern[0]
+	if pat == '\\' { // escape sequence
+		if len(pattern) == 1 {
+			return false, nil
+		}
+		if pattern[1] == 'd' {
+			if onlyStart {
+				if isDigit(line[0]) {
+					return matchLine(line[1:], pattern[2:], onlyStart)
+				}
+				return false, nil
+			} else {
+				for i := 0; i < len(line); i++ {
+					match, err := matchLine(line[i:], pattern, true)
+					if match {
+						return match, err
+					}
+				}
+			}
+		}
+	} else if pat == '+' {
 
-	return ok, nil
+	} else if pat == '*' {
+
+	} else {
+		// match a single character
+		if onlyStart {
+			if line[0] == pattern[0] {
+				return matchLine(line[1:], pattern[1:], onlyStart)
+			}
+			return false, nil
+		} else {
+			for i := 0; i < len(line); i++ {
+				match, err := matchLine(line[i:], pattern, true)
+				if match {
+					return match, err
+				}
+			}
+			return false, nil
+		}
+	}
+
+	return false, nil
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
