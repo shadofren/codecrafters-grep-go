@@ -114,6 +114,8 @@ func parsePattern(pattern string) []*Token {
 			case '?':
 				last := tokens[len(tokens)-1]
 				last.ZeroOrMore = true
+      case '.':
+        tokens = append(tokens, &Token{Type: WildCard, Raw: "."})
 			case '\\':
 				nxt := pattern[i+1]
 				if nxt == 'w' {
@@ -212,6 +214,9 @@ func (p *PatternMatcher) MatchSingleToken(ch byte, tok *Token) (bool, error) {
 				return false, nil
 			}
 		}
+    return true, nil
+  case WildCard:
+    // match anything so ...
     return true, nil
 	default:
 		return false, nil
