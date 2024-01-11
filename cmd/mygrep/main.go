@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Usage: echo <input_text> | your_grep.sh -E <pattern>
@@ -68,6 +69,15 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 			return false, nil
 		case '*':
 			return false, nil
+    case '[': // character group
+      endIdx := strings.Index(pattern, "]")
+      for i := 1; i < endIdx; i++ {
+        // check if any of the character match
+        if line[0] == pattern[i] {
+          return matchLine(line[1:], pattern[endIdx+1:], onlyStart)
+        }
+      }
+      return false, nil
 		default:
 			if line[0] == pattern[0] {
 				return matchLine(line[1:], pattern[1:], onlyStart)
