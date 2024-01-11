@@ -48,13 +48,18 @@ func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 	if len(pattern) == 0 {
 		return true, nil
 	}
-	if len(line) == 0 { 
-		return false, nil
-	}
-
   if pattern[0] == '^' {
     return matchLine(line, pattern[1:], true)
   }
+  if pattern[0] == '$' {
+    if len(line) != 0 {
+      return false, nil
+    }
+    return true, nil
+  }
+	if len(line) == 0 { 
+		return false, nil
+	}
 
 	if onlyStart {
 		// recursion
