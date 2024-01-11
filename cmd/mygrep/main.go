@@ -19,6 +19,7 @@ const (
 	PositiveGroup
 	NegativeGroup
 	WildCard
+	Alternation
 )
 
 // parse the pattern into tokens
@@ -33,6 +34,8 @@ func (t *Token) Print() {
 	fmt.Printf("%s: ZeroOrMore = %v\n", t.Raw, t.ZeroOrMore)
 }
 
+// for Alternation, we can have multiple PatternMatcher
+// each alternation double the number of PatternMatcher
 type PatternMatcher struct {
 	Data    []byte
 	Pattern []*Token
@@ -57,30 +60,50 @@ func main() {
 		line = line[:len(line)-1]
 	}
 
-	tokens := parsePattern(pattern)
-	fmt.Printf("parsed %d tokens\n", len(tokens))
-	for _, tok := range tokens {
-		tok.Print()
+	for _, noAlternationPattern := range processAlternation(pattern) {
+
+		tokens := parsePattern(noAlternationPattern)
+		p := &PatternMatcher{Data: line, Pattern: tokens}
+		ok, _ := p.Match(0, 0, false)
+		if ok {
+			fmt.Println("ok")
+			os.Exit(0)
+		}
 	}
 
-	p := &PatternMatcher{Data: line, Pattern: tokens}
-
-	ok, err := p.Match(0, 0, false)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(2)
-	}
-
-	if !ok {
-		fmt.Println("not ok")
-		os.Exit(1)
-	}
-	fmt.Println("ok")
-
+	fmt.Println("not ok")
+	os.Exit(1)
 	// default exit code is 0 which means success
 }
 
+func processAlternation(pattern string) []string {
+
+	result := []string{""}
+
+	i := 0
+	n := len(pattern)
+	for i < n {
+		if pattern[i] == '(' {
+			endIdx := i + strings.Index(pattern[i:], ")")
+			parts := strings.Split(pattern[i+1:endIdx], "|")
+			newResult := make([]string, 0)
+			for _, p := range parts {
+				for _, existing := range result {
+					newResult = append(newResult, existing+p)
+				}
+			}
+			result = newResult
+			i = endIdx
+		} else {
+			for j := 0; j < len(result); j++ {
+				result[j] = result[j] + string(pattern[i])
+			}
+		}
+		i++
+	}
+
+	return result
+}
 func parsePattern(pattern string) []*Token {
 	tokens := make([]*Token, 0)
 	i := 0
@@ -114,8 +137,8 @@ func parsePattern(pattern string) []*Token {
 			case '?':
 				last := tokens[len(tokens)-1]
 				last.ZeroOrMore = true
-      case '.':
-        tokens = append(tokens, &Token{Type: WildCard, Raw: "."})
+			case '.':
+				tokens = append(tokens, &Token{Type: WildCard, Raw: "."})
 			case '\\':
 				nxt := pattern[i+1]
 				if nxt == 'w' {
@@ -157,26 +180,26 @@ func (p *PatternMatcher) Match(dIdx, pIdx int, start bool) (bool, error) {
 	if start {
 		// normal cases
 		tok := p.Pattern[pIdx]
-    match, _ := p.MatchSingleToken(p.Data[dIdx], tok)
+		match, _ := p.MatchSingleToken(p.Data[dIdx], tok)
 		if tok.ZeroOrMore {
-      if match {
-        // consume the character, keep the token
-        ok, _ := p.Match(dIdx + 1, pIdx, true)
-        if ok {
-          return ok, nil
-        }
-        // keep the character, consume the token
-        return p.Match(dIdx, pIdx+1, true)
-      } else {
-        // no match, have to skip this token
-        return p.Match(dIdx, pIdx+1, true)
-      }
+			if match {
+				// consume the character, keep the token
+				ok, _ := p.Match(dIdx+1, pIdx, true)
+				if ok {
+					return ok, nil
+				}
+				// keep the character, consume the token
+				return p.Match(dIdx, pIdx+1, true)
+			} else {
+				// no match, have to skip this token
+				return p.Match(dIdx, pIdx+1, true)
+			}
 		} else {
-      if match {
-        return p.Match(dIdx+1, pIdx+1, true)
-      }
-      return false, nil
-    }
+			if match {
+				return p.Match(dIdx+1, pIdx+1, true)
+			}
+			return false, nil
+		}
 	} else {
 		for i := 0; i < len(p.Data); i++ {
 			match, err := p.Match(i, pIdx, true)
@@ -206,7 +229,7 @@ func (p *PatternMatcher) MatchSingleToken(ch byte, tok *Token) (bool, error) {
 				return match, err
 			}
 		}
-    return false, nil
+		return false, nil
 	case NegativeGroup:
 		for _, innerTok := range tok.InnerToken {
 			match, _ := p.MatchSingleToken(ch, innerTok)
@@ -214,10 +237,10 @@ func (p *PatternMatcher) MatchSingleToken(ch byte, tok *Token) (bool, error) {
 				return false, nil
 			}
 		}
-    return true, nil
-  case WildCard:
-    // match anything so ...
-    return true, nil
+		return true, nil
+	case WildCard:
+		// match anything so ...
+		return true, nil
 	default:
 		return false, nil
 	}
