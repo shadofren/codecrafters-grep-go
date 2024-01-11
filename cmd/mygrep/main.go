@@ -21,8 +21,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: read input text: %v\n", err)
 		os.Exit(2)
 	}
+
+  var ok bool
+  if line[len(line)-1] == '\n' {
+    ok, err = matchLine(line[:len(line)-1], pattern, false)
+  } else {
+    ok, err = matchLine(line, pattern, false)
+  }
   
-  ok, err := matchLine(line, pattern, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(2)
@@ -39,11 +45,12 @@ func main() {
 
 func matchLine(line []byte, pattern string, onlyStart bool) (bool, error) {
 
+  fmt.Println("matching", line, pattern, onlyStart)
 	// base case
 	if len(pattern) == 0 {
 		return true, nil
 	}
-	if len(line) == 1 { // skip the \n for now
+	if len(line) == 0 { 
 		return false, nil
 	}
 
